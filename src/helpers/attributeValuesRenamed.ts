@@ -1,6 +1,5 @@
-import * as ast from '@angular/compiler';
-import * as Lint from 'tslint';
-import { BasicTemplateAstVisitor } from 'codelyzer/angular/templates/basicTemplateAstVisitor';
+import { Rule, ASTWithSource, ParseSourceSpan } from '@angular-eslint/template-parser';
+import { BasicTemplateAstVisitor } from '@angular-eslint/template-parser/builder';
 
 function generateErrorMessage(elementName: string, attrName: string, attrValue: string, replacement: string) {
   return `The ${attrName}="${attrValue}" attribute/value of ${elementName} should be written as ${replacement}.`;
@@ -8,7 +7,7 @@ function generateErrorMessage(elementName: string, attrName: string, attrValue: 
 
 export function createAttributeValuesRenamedTemplateVisitorClass(elementNames: string[], replacementMap: Map<string, Map<string, string>>) {
   return class extends BasicTemplateAstVisitor {
-    visitElement(element: ast.ElementAst, context: any): any {
+    visitElement(element: Rule.ElementAst, context: any): any {
       for (const elementName of elementNames) {
         if (element.name === elementName) {
           for (const attr of element.attrs) {
@@ -24,7 +23,7 @@ export function createAttributeValuesRenamedTemplateVisitorClass(elementNames: s
                 const replacement = `${attr.name}="${replacementValue}"`;
 
                 this.addFailureAt(start, end - start, generateErrorMessage(elementName, attr.name, attr.value, replacement), [
-                  Lint.Replacement.replaceFromTo(position, position + end - start, replacement)
+                  this.createReplacement(position, end - start, replacement),
                 ]);
               }
             }
@@ -33,6 +32,10 @@ export function createAttributeValuesRenamedTemplateVisitorClass(elementNames: s
       }
 
       super.visitElement(element, context);
+    }
+
+    private createReplacement(position: ParseSourceSpan, length: number, text: string) {
+      return new Lint.Replacement(position.start.offset, length, text);
     }
   };
 }
